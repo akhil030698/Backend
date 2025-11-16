@@ -1,11 +1,18 @@
 const express = require('express');
 const app = express();
 require('dotenv').config();
-require('./models/db.js');
+require('./Models/db.js');
+const authRouter = require('./Routes/AuthRouter');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+
 const PORT = process.env.PORT || 8080;
-app.get('/', (req, res) => {
-  res.send('ping');
-});
+
+app.use(bodyParser.json());
+app.use(cors());
+
+
+app.use('/auth', authRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
