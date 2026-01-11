@@ -12,7 +12,6 @@ const signup = async (req, res) => {
     }
     const newUser = new UserModel({ name, email, password });
     newUser.password = await bycrypt.hash(password, 10);
-    await newUser.save();
 
     const userData = {
       id: newUser._id,
@@ -25,6 +24,8 @@ const signup = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+    user.refreshToken = jwtToken;
+    await newUser.save();
     res.status(201).json({
       message: "User registered successfully",
       success: true,
@@ -55,8 +56,10 @@ const login = async (req, res) => {
     const jwtToken = jwt.sign(
       { id: User._id, email: User.email },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1m" }
     );
+    User.refreshToken = jwtToken;
+    await User.save();
     const userData = {
       id: User._id,
       name: User.name,
@@ -73,14 +76,36 @@ const login = async (req, res) => {
   }
 };
 
+const refresh = async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    const User = await UserModel.findOne({ email });
+    console.log("User", User);
+    const jwtToken = jwt.sign(
+      { id: User._id, email: User.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+    res.status(200).json({
+      success: true,
+      token: jwtToken,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error", success: false });
+  }
+};
+
 const logout = async (req, res) => {
   try {
-    const { email, password, jwtToken } = req.body;
+    const { email } = req.body; // Assume email is sent to identify user
+    const user = await UserModel.findOne({ email });
+    if (user) {
+      user.refreshToken = null; // Invalidate refresh token
+      await user.save();
+    }
     res.status(200).json({
       message: "User logout successfully",
       success: true,
-      token: "",
-      user: {},
     });
   } catch (err) {
     res.status(500).json({ message: "Internal Server Error", success: false });
@@ -91,4 +116,5 @@ module.exports = {
   signup,
   login,
   logout,
+  refresh,
 };
